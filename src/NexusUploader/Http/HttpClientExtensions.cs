@@ -12,7 +12,8 @@ namespace NexusUploader.Http
             return services.AddHttpClient<ManageClient>(client =>
             {
                 client.BaseAddress = new System.Uri("https://www.nexusmods.com");
-                client.DefaultRequestHeaders.UserAgent.Add(new System.Net.Http.Headers.ProductInfoHeaderValue("NexusUploader", "0.1.0"));
+                client.DefaultRequestHeaders.UserAgent.Add(
+                    new System.Net.Http.Headers.ProductInfoHeaderValue("NexusUploader", "0.1.0"));
             }).ConfigurePrimaryHttpMessageHandler<NexusCookieHandler>();
         }
 
@@ -22,7 +23,8 @@ namespace NexusUploader.Http
             return services.AddHttpClient<UploadClient>(client =>
             {
                 client.BaseAddress = new System.Uri("https://upload.nexusmods.com");
-                client.DefaultRequestHeaders.UserAgent.Add(new System.Net.Http.Headers.ProductInfoHeaderValue("NexusUploader", "0.1.0"));
+                client.DefaultRequestHeaders.UserAgent.Add(
+                    new System.Net.Http.Headers.ProductInfoHeaderValue("NexusUploader", "0.1.0"));
             }).ConfigurePrimaryHttpMessageHandler<NexusCookieHandler>();
         }
 

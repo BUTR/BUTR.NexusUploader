@@ -33,6 +33,7 @@ namespace NexusUploader.Services
                 var resp = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(json);
                 var assembled = bool.TryParse(resp["file_chunks_reassembled"]?.ToString(), out ready);
             } while (!ready);
+
             return ready;
         }
 
@@ -47,29 +48,30 @@ namespace NexusUploader.Services
         public async Task<UploadedFile> UploadFile(GameRef game, int modId, FileInfo file)
         {
             int chunckSize = 5242880;
+
             int GetChunkSize(int i)
             {
-                long position = (i * (long)chunckSize);
-                int toRead = (int)Math.Min(file.Length - position + 1, chunckSize);
+                long position = (i * (long) chunckSize);
+                int toRead = (int) Math.Min(file.Length - position + 1, chunckSize);
                 return toRead;
             }
+
             string GetIdentifier()
             {
                 return $"{file.Length}{file.Name.Replace(".", "")}";
             }
 
-            int totalChunks = (int)(file.Length / chunckSize);
+            int totalChunks = (int) (file.Length / chunckSize);
             if (file.Length % chunckSize != 0)
             {
                 totalChunks++;
             }
 
-            using (var str = file.Open(FileMode.Open, FileAccess.Read, FileShare.Read))
+            await using var str = file.Open(FileMode.Open, FileAccess.Read, FileShare.Read);
+            for (int i = 0; i < totalChunks; i++)
             {
-                for (int i = 0; i < totalChunks; i++)
-                {
-                    var toRead = GetChunkSize(i);
-                    var path = "/uploads/chunk"
+                var toRead = GetChunkSize(i);
+                var path = "/uploads/chunk"
                     .SetQueryParams(new
                     {
                         resumableChunkNumber = totalChunks,
@@ -82,44 +84,43 @@ namespace NexusUploader.Services
                         resumableRelativePath = file.Name,
                         resumableTotalChunks = totalChunks
                     });
-                    var getResp = await _httpClient.GetAsync(path.ToString());
-                    if (getResp.StatusCode != HttpStatusCode.NoContent)
-                    {
-                        throw new Exception("I don't even know what this means");
-                    }
-                    byte[] buffer = new byte[toRead];
-                    await str.ReadAsync(buffer, 0, buffer.Length);
-                    using (MultipartFormDataContent form = new MultipartFormDataContent())
-                    {
-                        form.Add(new StringContent((i + 1).ToString()), "resumableChunkNumber");
-                        form.Add(chunckSize.ToContent(), "resumableChunkSize");
-                        form.Add(toRead.ToContent(), "resumableCurrentChunkSize");
-                        form.Add(file.Length.ToContent(), "resumableTotalSize");
-                        form.Add(_zipContentType.ToContent(), "resumableType");
-                        form.Add(GetIdentifier().ToContent(), "resumableIdentifier");
-                        form.Add(file.Name.ToContent(), "resumableFilename");
-                        form.Add(file.Name.ToContent(), "resumableRelativePath");
-                        form.Add(totalChunks.ToContent(), "resumableTotalChunks");
-                        form.Add(new ByteArrayContent(buffer), "file", "blob");
-                        //  new StreamContent(str, toRead)
-                        // form.Add(new ByteArrayContent(buffer), "file", "blob");
-                        var response = await _httpClient.PostAsync("/uploads/chunk", form).ConfigureAwait(false);
-                        if (!response.IsSuccessStatusCode)
-                        {
-                            throw new Exception("I don't know what this means either");
-                        }
-                        if (response.Content.Headers.Contains("Content-Type"))
-                        {
-                            var resp = System.Text.Json.JsonSerializer.Deserialize<UploadedFile>(await response.Content.ReadAsStringAsync());
-                            if (!string.IsNullOrWhiteSpace(resp.Id))
-                            {
-                                resp.FileSize = (int)file.Length;
-                                resp.OriginalFile = file.Name;
-                                return resp;
-                            }
+                var getResp = await _httpClient.GetAsync(path.ToString());
+                if (getResp.StatusCode != HttpStatusCode.NoContent)
+                {
+                    throw new Exception("I don't even know what this means");
+                }
 
-                        }
+                byte[] buffer = new byte[toRead];
+                await str.ReadAsync(buffer, 0, buffer.Length);
+                using MultipartFormDataContent form = new MultipartFormDataContent();
+                form.Add(new StringContent((i + 1).ToString()), "resumableChunkNumber");
+                form.Add(chunckSize.ToContent(), "resumableChunkSize");
+                form.Add(toRead.ToContent(), "resumableCurrentChunkSize");
+                form.Add(file.Length.ToContent(), "resumableTotalSize");
+                form.Add(_zipContentType.ToContent(), "resumableType");
+                form.Add(GetIdentifier().ToContent(), "resumableIdentifier");
+                form.Add(file.Name.ToContent(), "resumableFilename");
+                form.Add(file.Name.ToContent(), "resumableRelativePath");
+                form.Add(totalChunks.ToContent(), "resumableTotalChunks");
+                form.Add(new ByteArrayContent(buffer), "file", "blob");
+                //  new StreamContent(str, toRead)
+                // form.Add(new ByteArrayContent(buffer), "file", "blob");
+                var response = await _httpClient.PostAsync("/uploads/chunk", form).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new Exception("I don't know what this means either");
+                }
+
+                if (response.Content.Headers.Contains("Content-Type"))
+                {
+                    var resp = System.Text.Json.JsonSerializer.Deserialize<UploadedFile>(await response.Content.ReadAsStringAsync());
+                    if (!string.IsNullOrWhiteSpace(resp.Id))
+                    {
+                        resp.FileSize = (int) file.Length;
+                        resp.OriginalFile = file.Name;
+                        return resp;
                     }
+
                 }
             }
 

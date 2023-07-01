@@ -13,7 +13,8 @@ namespace NexusUploader
         private readonly ModConfiguration _config;
         private readonly ManageClient _manager;
 
-        public CheckCommand(ApiClient apiClient, ILogger<CheckCommand> logger, UploadClient uploadClient, ModConfiguration config, ManageClient manager)
+        public CheckCommand(ApiClient apiClient, ILogger<CheckCommand> logger, UploadClient uploadClient,
+            ModConfiguration config, ManageClient manager)
         {
             _apiClient = apiClient;
             _logger = logger;
@@ -21,26 +22,37 @@ namespace NexusUploader
             _config = config;
             _manager = manager;
         }
+
         public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
         {
             var apiValid = !settings.ApiKey.IsSet;
             var ckValid = !settings.RawCookie;
-            if (settings.ApiKey.IsSet) {
+            if (settings.ApiKey.IsSet)
+            {
                 apiValid = await _apiClient.CheckValidKey(settings.ApiKey.Value);
-                if (apiValid) {
+                if (apiValid)
+                {
                     _logger.LogInformation("[green]API key successfully validated![/]");
-                } else {
+                }
+                else
+                {
                     _logger.LogWarning("[orange3]API key validation [bold]failed![/][/]");
                 }
             }
-            if (settings.RawCookie) {
+
+            if (settings.RawCookie)
+            {
                 ckValid = await _manager.CheckValidSession();
-                if (ckValid) {
+                if (ckValid)
+                {
                     _logger.LogInformation("[green]Cookies successfully validated![/]");
-                } else {
+                }
+                else
+                {
                     _logger.LogWarning("[orange3]Cookie validation [bold]failed![/][/]");
                 }
             }
+
             return ckValid && apiValid ? 0 : 1;
         }
 
@@ -52,24 +64,31 @@ namespace NexusUploader
             {
                 _config = config;
             }
+
             [CommandOption("-k|--key [value]")]
             public FlagValue<string> ApiKey { get; set; }
 
             [CommandOption("-c|--cookie")]
             public bool RawCookie { get; set; }
+
             public override ValidationResult Validate()
             {
-                if (_config.Cookies.IsSet()) {
+                if (_config.Cookies.IsSet())
+                {
                     RawCookie = true;
                 }
-                if (!ApiKey.IsSet && _config.ApiKey.IsSet()) {
+
+                if (!ApiKey.IsSet && _config.ApiKey.IsSet())
+                {
                     ApiKey.Value = _config.ApiKey;
                     ApiKey.IsSet = true;
                 }
+
                 if (!ApiKey.IsSet && !RawCookie)
                 {
                     return ValidationResult.Error("You must specify either --key or --cookie to check API keys or cookies respectively.");
                 }
+
                 return base.Validate();
             }
         }

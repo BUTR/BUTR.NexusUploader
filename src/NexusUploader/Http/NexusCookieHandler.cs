@@ -21,14 +21,18 @@ namespace NexusUploader.Http
         private CookieContainer GetCookies()
         {
             var c = new CookieContainer();
-            try {
-                foreach (var (name, value) in _cookies.GetCookies().Where(cookie =>
-                    !string.IsNullOrWhiteSpace(cookie.Key) && !string.IsNullOrWhiteSpace(cookie.Value))) {
+            try
+            {
+                foreach (var (name, value) in _cookies.GetCookies().Where(cookie => !string.IsNullOrWhiteSpace(cookie.Key) && !string.IsNullOrWhiteSpace(cookie.Value)))
+                {
                     c.Add(new Cookie(name, value) {Domain = "nexusmods.com"});
                 }
-            } catch {
+            }
+            catch
+            {
                 _logger.LogError("Error encountered while loading cookies! [bold] This probably won't work![/]");
             }
+
             return c;
         }
     }

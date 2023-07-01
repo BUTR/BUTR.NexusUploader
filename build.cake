@@ -20,7 +20,7 @@ var packageVersion = string.Empty;
 // GLOBAL VARIABLES
 ///////////////////////////////////////////////////////////////////////////////
 
-var solutionPath = File("./src/NexusMiddleware.sln");
+var solutionPath = File("./src/NexusUploader.sln");
 var solution = ParseSolution(solutionPath);
 var projects = GetProjects(solutionPath, configuration);
 var artifacts = "./dist/";

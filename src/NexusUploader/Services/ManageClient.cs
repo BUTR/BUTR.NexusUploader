@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
-using System.IO;
+using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.Extensions.Logging;
@@ -21,29 +22,18 @@ namespace NexusUploader.Services
             _logger = logger;
         }
 
-        public async Task<bool> CheckValidSession() {
-            var uri = "/Core/Libs/Common/Widgets/MyModerationHistoryTab";
-            using (var req = new HttpRequestMessage(HttpMethod.Get, uri))
+        public async Task<bool> CheckValidSession()
+        {
+            var uri = "/Core/Libs/Common/Managers/Mods?GetDownloadHistory";
+            using var req = new HttpRequestMessage(HttpMethod.Post, uri);
+            req.Content = new StringContent("", Encoding.UTF8);
+            var resp = await _httpClient.SendAsync(req);
+            if (!resp.IsSuccessStatusCode)
             {
-                var resp = await _httpClient.SendAsync(req);
-                if (!resp.IsSuccessStatusCode) {
-                    return false;
-                }
-                var str = await resp.Content.ReadAsStreamAsync();
-                var reader = new StreamReader(str);
-                string line;
-                int lineOffset = 0;
-                while ((line = reader.ReadLine()) != null && lineOffset < 10)
-                {
-                    if (line.Contains("og:") || line.Contains("Error"))
-                    {
-                        return false;
-                    }
-                    lineOffset++;
-                }
-                return true;
-                // return resp.IsSuccessStatusCode && (resp.Content.Headers.ContentLength.HasValue && resp.Content.Headers.ContentLength < 100000) && (resp.Headers.Where(c => c.Key == "Set-Cookie").Count() < 2);
+                return false;
             }
+
+            return resp.StatusCode == HttpStatusCode.OK;
         }
 
         public async Task<bool> AddChangelog(GameRef game, int modId, string version, string changeMessage)
@@ -61,15 +51,18 @@ namespace NexusUploader.Services
                 content.Add(new StringContent(version), "new_version[]");
                 content.Add(new StringContent(change), "new_change[]");
             }
+
             content.Add("save".ToContent(), "action");
             content.Add(new StringContent(modId.ToString()), "id");
             message.Content = content;
             var resp = await _httpClient.SendAsync(message);
-            if (resp.IsSuccessStatusCode) {
+            if (resp.IsSuccessStatusCode)
+            {
                 var strResponse = await resp.Content.ReadAsStringAsync();
                 var data = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(strResponse);
                 return data.ContainsKey("status") && data["status"].ToString() == true.ToString();
             }
+
             return false;
         }
 
@@ -78,45 +71,48 @@ namespace NexusUploader.Services
             var uri = "/Core/Libs/Common/Managers/Mods?AddFile";
             var message = new HttpRequestMessage(HttpMethod.Post, uri);
             message.Headers.Add("Referer", $"https://www.nexusmods.com/{game.Name}/mods/edit/?step=docs&id={modId}");
-            using (var content = new MultipartFormDataContent())
+            using var content = new MultipartFormDataContent();
+            content.Add(game.Id.ToContent(), "game_id");
+            content.Add(options.Name.ToContent(), "name");
+            content.Add(options.Version.ToContent(), "file-version");
+            content.Add(options.UpdateMainVersion ? 1.ToContent() : 0.ToContent(), "update-version");
+            content.Add(1.ToContent(), "category");
+            if (options.PreviousFileId.HasValue)
             {
-                content.Add(game.Id.ToContent(), "game_id");
-                content.Add(options.Name.ToContent(), "name");
-                content.Add(options.Version.ToContent(), "file-version");
-                content.Add(options.UpdateMainVersion ? 1.ToContent() : 0.ToContent(), "update-version");
-                content.Add(1.ToContent(), "category");
-                if (options.PreviousFileId.HasValue) {
-                    content.Add(1.ToContent(), "new-existing");
-                    content.Add(options.PreviousFileId.Value.ToContent(), "old_file_id");
-                }
-                content.Add(options.Description.ToContent(), "brief-overview");
-                content.Add(options.RemoveDownloadWithManager ? 1.ToContent() : 0.ToContent(), "remove_nmm_button");
-                content.Add(options.SetAsMainVortex != null
-                    ? options.SetAsMainVortex.Value
-                        ? 1.ToContent()
-                        : 0.ToContent()
-                    : options.UpdateMainVersion ? 1.ToContent() : 0.ToContent(), "set_as_main_nmm");
-                content.Add(upload.Id.ToContent(), "file_uuid");
-                content.Add(upload.FileSize.ToContent(), "file_size");
-                content.Add(modId.ToContent(), "mod_id");
-                content.Add(modId.ToContent(), "id");
-                content.Add("add".ToContent(), "action");
-                content.Add(upload.FileName.ToContent(), "uploaded_file");
-                content.Add(upload.OriginalFile.ToContent(), "original_file");
-                message.Content = content;
-                var resp = await _httpClient.SendAsync(message);
-                if (resp.IsSuccessStatusCode) {
-                    var strResponse = await resp.Content.ReadAsStringAsync();
-                    var data = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(strResponse);
-                    var success = data.ContainsKey("status") && data["status"].ToString() == true.ToString();
-                    if (success) {
-                        return true;
-                    } else {
-                        _logger.LogWarning("Response received from Nexus Mods: " + data["message"].ToString());
-                    }
-                }
-                return false;
+                content.Add(1.ToContent(), "new-existing");
+                content.Add(options.PreviousFileId.Value.ToContent(), "old_file_id");
             }
+
+            content.Add(options.Description.ToContent(), "brief-overview");
+            content.Add(options.RemoveDownloadWithManager ? 1.ToContent() : 0.ToContent(), "remove_nmm_button");
+            content.Add(options.SetAsMainVortex != null
+                ? options.SetAsMainVortex.Value ? 1.ToContent() : 0.ToContent()
+                : options.UpdateMainVersion ? 1.ToContent() : 0.ToContent(), "set_as_main_nmm");
+            content.Add(upload.Id.ToContent(), "file_uuid");
+            content.Add(upload.FileSize.ToContent(), "file_size");
+            content.Add(modId.ToContent(), "mod_id");
+            content.Add(modId.ToContent(), "id");
+            content.Add("add".ToContent(), "action");
+            content.Add(upload.FileName.ToContent(), "uploaded_file");
+            content.Add(upload.OriginalFile.ToContent(), "original_file");
+            message.Content = content;
+            var resp = await _httpClient.SendAsync(message);
+            if (resp.IsSuccessStatusCode)
+            {
+                var strResponse = await resp.Content.ReadAsStringAsync();
+                var data = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(strResponse);
+                var success = data.ContainsKey("status") && data["status"].ToString() == true.ToString();
+                if (success)
+                {
+                    return true;
+                }
+                else
+                {
+                    _logger.LogWarning("Response received from Nexus Mods: {Message}", data["message"]);
+                }
+            }
+
+            return false;
         }
     }
 }

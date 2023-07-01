@@ -2,14 +2,15 @@ using System.Text.Json.Serialization;
 
 namespace NexusUploader.Nexus
 {
-    public class UploadedFile {
+    public class UploadedFile
+    {
         [JsonPropertyName("uuid")]
-        public string Id {get;set;}
+        public string Id { get; set; }
         [JsonIgnore]
-        public int FileSize {get;set;}
+        public int FileSize { get; set; }
         [JsonPropertyName("filename")]
-        public string FileName {get;set;}
+        public string FileName { get; set; }
         [JsonIgnore]
-        public string OriginalFile {get;set;}
+        public string OriginalFile { get; set; }
     }
 }

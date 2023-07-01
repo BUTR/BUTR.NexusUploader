@@ -5,6 +5,14 @@ VisualStudioVersion = 15.0.26124.0
 MinimumVisualStudioVersion = 15.0.26124.0
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NexusUploader", "NexusUploader\NexusUploader.csproj", "{233CB377-937F-4C50-8761-2C4E18A5A534}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "root", "root", "{5014EB37-723C-4DBB-8C4B-8A2E3B5B5671}"
+	ProjectSection(SolutionItems) = preProject
+		..\.github\workflows\build.yml = ..\.github\workflows\build.yml
+		..\build.cake = ..\build.cake
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{41B5896A-316B-41F8-AF16-C4F107664DFE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +38,9 @@ Global
 		{233CB377-937F-4C50-8761-2C4E18A5A534}.Release|x64.Build.0 = Release|Any CPU
 		{233CB377-937F-4C50-8761-2C4E18A5A534}.Release|x86.ActiveCfg = Release|Any CPU
 		{233CB377-937F-4C50-8761-2C4E18A5A534}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{41B5896A-316B-41F8-AF16-C4F107664DFE} = {5014EB37-723C-4DBB-8C4B-8A2E3B5B5671}
+		{233CB377-937F-4C50-8761-2C4E18A5A534} = {41B5896A-316B-41F8-AF16-C4F107664DFE}
 	EndGlobalSection
 EndGlobal
