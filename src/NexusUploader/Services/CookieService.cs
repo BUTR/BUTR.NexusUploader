@@ -14,12 +14,11 @@ namespace NexusUploader.Services
             _config = config;
         }
         /*
-         * Not even close, past me: only truly required one seems to be sid
+         * Not even close, past me: only truly required one seems to be sid_develop
          */
 
         public Dictionary<string, string> GetCookies()
         {
-
             if (Path.HasExtension(_config.Cookies) && File.Exists(_config.Cookies))
             {
                 var ckTxt = File.ReadAllLines(Path.GetFullPath(_config.Cookies));
@@ -30,7 +29,7 @@ namespace NexusUploader.Services
             {
                 //almost certainly a raw sid, we'll assume it is
                 var raw = Uri.UnescapeDataString(_config.Cookies);
-                return new Dictionary<string, string> {["sid"] = Uri.EscapeDataString(raw)};
+                return new Dictionary<string, string> {["sid_develop"] = Uri.EscapeDataString(raw)};
             }
             else
             {

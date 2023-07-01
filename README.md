@@ -15,7 +15,7 @@ This tool does not automate the web UI, as an [existing solution](https://github
 You can either download the binary for your platform from the Releases section on the right, or install it using the `dotnet` CLI:
 
 ```bash
-dotnet tool install -g NexusUploader
+dotnet tool install -g BUTR.NexusUploader
 # then run with
 unex
 ```
@@ -23,7 +23,7 @@ unex
 If your project already has a local tools manifest, you can also install it locally:
 
 ```bash
-dotnet tool install NexusUploader
+dotnet tool install BUTR.NexusUploader
 # then run with
 dotnet unex
 ```
@@ -50,6 +50,7 @@ The remaining two configuration keys are sensitive and should not be made public
 
 - If you have the raw Cookie header from a valid session, you can include the whole header in the `UNEX_COOKIES` variable
 - If you have an exported `cookies.txt` file, you can include the relative path to the file in the `UNEX_COOKIES` variable (like `./cookies.txt`)
+- If you have the `sid_develop` variable, include it in the `UNEX_COOKIES` variable
 
 > All relative paths will be parsed relative to the *current working directory*
 
