@@ -26,6 +26,7 @@ namespace NexusUploader.Services
         {
             var uri = "/Core/Libs/Common/Managers/Mods?GetDownloadHistory";
             using var req = new HttpRequestMessage(HttpMethod.Post, uri);
+            req.Headers.Add("X-Requested-With", "XMLHttpRequest");
             req.Content = new StringContent("", Encoding.UTF8);
             var resp = await _httpClient.SendAsync(req);
             if (!resp.IsSuccessStatusCode)
@@ -40,7 +41,8 @@ namespace NexusUploader.Services
         {
             changeMessage = HttpUtility.HtmlEncode(changeMessage).Replace(@"\n", "\n");
             var uri = "/Core/Libs/Common/Managers/Mods?SaveDocumentation";
-            var message = new HttpRequestMessage(HttpMethod.Post, uri);
+            using var message = new HttpRequestMessage(HttpMethod.Post, uri);
+            message.Headers.Add("X-Requested-With", "XMLHttpRequest");
             message.Headers.Add("Referer", $"https://www.nexusmods.com/{game.Name}/mods/edit/?step=docs&id={modId}");
             var content = new MultipartFormDataContent();
             content.Add(new StringContent(game.Id.ToString()), "game_id");
@@ -69,7 +71,8 @@ namespace NexusUploader.Services
         public async Task<bool> AddFile(GameRef game, int modId, UploadedFile upload, FileOptions options)
         {
             var uri = "/Core/Libs/Common/Managers/Mods?AddFile";
-            var message = new HttpRequestMessage(HttpMethod.Post, uri);
+            using var message = new HttpRequestMessage(HttpMethod.Post, uri);
+            message.Headers.Add("X-Requested-With", "XMLHttpRequest");
             message.Headers.Add("Referer", $"https://www.nexusmods.com/{game.Name}/mods/edit/?step=docs&id={modId}");
             using var content = new MultipartFormDataContent();
             content.Add(game.Id.ToContent(), "game_id");
