@@ -25,23 +25,16 @@ namespace NexusUploader.Services
                 var ckSet = ParseCookiesTxt(ckTxt);
                 return ckSet;
             }
-            else if (_config.Cookies.StartsWith("{") || _config.Cookies.StartsWith("%7B"))
+            else if (_config.Cookies.Contains('\n'))
             {
-                //almost certainly a raw sid, we'll assume it is
-                var raw = Uri.UnescapeDataString(_config.Cookies);
-                return new Dictionary<string, string> {["sid_develop"] = Uri.EscapeDataString(raw)};
+                var ckSet = ParseCookiesTxt(_config.Cookies.Split('\n'));
+                return ckSet;
             }
             else
             {
-                if (_config.Cookies.Contains('\n'))
-                {
-                    var ckSet = ParseCookiesTxt(_config.Cookies.Split('\n'));
-                    return ckSet;
-                }
-                else
-                {
-                    return _config.Cookies.Split(';').Select(s => s.Trim(' ')).ToDictionary(s => s.Split('=').First(), s => s.Split('=').Last());
-                }
+                //almost certainly a session id, we'll assume it is
+                var raw = Uri.UnescapeDataString(_config.Cookies);
+                return new Dictionary<string, string> {["nexusmods_session"] = Uri.EscapeDataString(raw)};
             }
 
         }

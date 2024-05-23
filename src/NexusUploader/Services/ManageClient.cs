@@ -25,9 +25,8 @@ namespace NexusUploader.Services
         public async Task<bool> CheckValidSession()
         {
             var uri = "/Core/Libs/Common/Managers/Mods?GetDownloadHistory";
-            using var req = new HttpRequestMessage(HttpMethod.Post, uri);
+            using var req = new HttpRequestMessage(HttpMethod.Get, uri);
             req.Headers.Add("X-Requested-With", "XMLHttpRequest");
-            req.Content = new StringContent("", Encoding.UTF8);
             var resp = await _httpClient.SendAsync(req);
             if (!resp.IsSuccessStatusCode)
             {
@@ -45,7 +44,7 @@ namespace NexusUploader.Services
             message.Headers.Add("X-Requested-With", "XMLHttpRequest");
             message.Headers.Add("Referer", $"https://www.nexusmods.com/{game.Name}/mods/edit/?step=docs&id={modId}");
             var content = new MultipartFormDataContent();
-            content.Add(new StringContent(game.Id.ToString()), "game_id");
+            content.Add(new StringContent(game.Id), "game_id");
             content.Add(new StringContent(string.Empty), "new_version[]");
             content.Add(new StringContent(string.Empty), "new_change[]");
             foreach (var change in changeMessage.Split('\n'))

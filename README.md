@@ -50,7 +50,8 @@ The remaining two configuration keys are sensitive and should not be made public
 
 - If you have the raw Cookie header from a valid session, you can include the whole header in the `UNEX_COOKIES` variable
 - If you have an exported `cookies.txt` file, you can include the relative path to the file in the `UNEX_COOKIES` variable (like `./cookies.txt`)
-- If you have the `sid_develop` variable, include it in the `UNEX_COOKIES` variable
+- If you have the `nexusmods_session` variable, include it in the `UNEX_COOKIES` variable
+- The lifetime of the `nexusmods_session` value is a week, so you may need to update it regularly
 
 > All relative paths will be parsed relative to the *current working directory*
 
