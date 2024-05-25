@@ -48,17 +48,17 @@ public class ChangelogCommand : AsyncCommand<ChangelogCommand.Settings>
     {
         [CommandOption("-k|--api-key")]
         [EnvironmentVariable("APIKEY")]
-        [Description("The NexusMods API key.")]
+        [Description("The NexusMods API key. Available Environment Variable: UNEX_APIKEY")]
         public string ApiKey { get; set; } = default!;
 
         [CommandOption("-g|--game")]
         [EnvironmentVariable("GAME")]
-        [Description("The NexusMods game name (domain) to upload the mod to. Can be found in the URL of the game page.")]
+        [Description("The NexusMods game name (domain) to upload the mod to. Can be found in the URL of the game page. Available Environment Variable: UNEX_GAME")]
         public string Game { get; set; } = default!;
 
         [CommandOption("-m|--mod-id")]
         [EnvironmentVariable("MODID")]
-        [Description("The NexusMods mod Id to update the changelog for.")]
+        [Description("The NexusMods mod Id to update the changelog for. Available Environment Variable: UNEX_MODID")]
         public int ModId { get; set; } = default!;
 
         [CommandArgument(0, "<version>")]
@@ -67,7 +67,7 @@ public class ChangelogCommand : AsyncCommand<ChangelogCommand.Settings>
 
         [CommandOption("-c|--changelog <changelog>")]
         [EnvironmentVariable("CHANGELOG")]
-        [Description("The changelog content to add.")]
+        [Description("The changelog content to add. Available Environment Variable: UNEX_CHANGELOG")]
         public string ChangelogContent { get; set; } = string.Empty;
 
         public override ValidationResult Validate()
