@@ -1,4 +1,4 @@
-# Nexus Mods File Uploader
+# BUTR's Nexus Mods File Uploader
 
 > Because a real API will be ready ***Soon™***
 
@@ -27,6 +27,10 @@ dotnet tool install BUTR.NexusUploader
 # then run with
 dotnet unex
 ```
+
+> By default, your mod's main version will be updated to your new file version, but you can skip this using the `--no-version-update` option. 
+
+You can optionally upload your file as a replacement for an existing file, by providing the `PreviousFile` configuration key. Set it to a file ID to directly replace that file, or to `"auto"` to replace the highest-versioned Main File on your mod (this is both highly experimental and only available for published mods).
 
 ## Configuration and Usage
 
@@ -62,6 +66,111 @@ Then, call the CLI to begin your upload:
 unex upload 163 ./Your-Mod-File.zip -v 1.1.2
 ```
 
-> By default, your mod's main version will be updated to your new file version, but you can skip this using the `--no-version-update` option. 
+### Available Commands:
 
-You can optionally upload your file as a replacement for an existing file, by providing the `PreviousFile` configuration key. Set it to a file ID to directly replace that file, or to `"auto"` to replace the highest-versioned Main File on your mod (this is both highly experimental and only available for published mods).
+###### unex -h
+```bat
+USAGE:
+    unex [OPTIONS] <COMMAND>
+
+EXAMPLES:
+    unex changelog <version> -c <changelog>
+    unex upload <mod-id> <archive-file> -v <version>
+    unex check -s <session-cookie> -k <api-key>
+    unex refresh -s <session-cookie>
+
+OPTIONS:
+    -h, --help    Prints help information
+
+COMMANDS:
+    changelog <version>               Add a changelog entry for a specific mod version
+    upload <mod-id> <archive-file>    Upload a mod
+    check                             Check the validity on an API Key and/or Session Cookie
+    refresh                           Refresh the session cookie
+```
+---
+
+###### unex changelog -h
+```bat
+DESCRIPTION:
+Add a changelog entry for a specific mod version
+
+USAGE:
+    unex changelog <version> [OPTIONS]
+
+EXAMPLES:
+    unex changelog <version> -c <changelog>
+
+ARGUMENTS:
+    <version>    The version of the mod to update the changelog for
+
+OPTIONS:
+    -h, --help                     Prints help information
+    -k, --api-key                  The NexusMods API key. Available Environment Variable: UNEX_APIKEY
+    -g, --game                     The NexusMods game name (domain) to upload the mod to. Can be found in the URL of the game page. Available Environment Variable: UNEX_GAME
+    -m, --mod-id                   The NexusMods mod Id to update the changelog for. Available Environment Variable: UNEX_MODID
+    -c, --changelog <CHANGELOG>    The changelog content to add. Available Environment Variable: UNEX_CHANGELOG
+```
+---
+
+###### unex upload -h
+```bat
+DESCRIPTION:
+Upload a mod
+
+USAGE:
+    unex upload <mod-id> <archive-file> [OPTIONS]
+
+EXAMPLES:
+    unex upload <mod-id> <archive-file> -v <version>
+
+ARGUMENTS:
+    <mod-id>          The NexusMods mod Id to upload the file to
+    <archive-file>    Path to the mod archive file to upload
+
+OPTIONS:
+    -h, --help                                    Prints help information
+    -k, --api-key                                 The NexusMods API key. Available Environment Variable: UNEX_APIKEY
+    -g, --game                                    The NexusMods game name (domain) to upload the mod to. Can be found in the URL of the game page. Available Environment Variable: UNEX_GAME
+    -f, --file-name                               Name for the file on NexusMods. Available Environment Variable: UNEX_FILENAME
+    -v, --version <VALUE>                         Version for your uploaded file. May also update your main version. Available Environment Variable: UNEX_FILEVERSION
+        --remove-download-with-manager [VALUE]    Removes the Download With Manager button. Available Environment Variable: UNEX_REMOVEDOWNLOADWITHMANAGER
+        --no-version-update [VALUE]               Skips updating your mod's main version to match this file's version. Available Environment Variable: UNEX_SKIPMAINVERSIONUPDATE
+        --set-main-vortex [VALUE]                 Sets this file as the main Vortex file (for the Download with Manager buttons). Available Environment Variable: UNEX_SETMAINVORTEXFILE
+```
+---
+
+###### unex check -h
+```bat
+DESCRIPTION:
+Check the validity on an API Key and/or Session Cookie
+
+USAGE:
+    unex check [OPTIONS]
+
+EXAMPLES:
+    unex check -s <session-cookie> -k <api-key>
+
+OPTIONS:
+    -h, --help              Prints help information
+    -k, --api-key           The NexusMods API key. Available Environment Variable: UNEX_APIKEY
+    -s, --session-cookie    Value of the 'nexusmods_session' cookie. Can be a file path or the raw cookie value. Available Environment Variable: UNEX_SESSION_COOKIE
+```
+---
+
+###### unex refresh -h
+```bat
+DESCRIPTION:
+Refresh the session cookie
+
+USAGE:
+    unex refresh [OPTIONS]
+
+EXAMPLES:
+    unex refresh -s <session-cookie>
+
+OPTIONS:
+    -h, --help                               Prints help information
+    -s, --session-cookie <SESSION-COOKIE>    Value of the 'nexusmods_session' cookie. Can be a file path or the raw cookie value. Available Environment Variable: UNEX_SESSION_COOKIE
+```
+---
