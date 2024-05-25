@@ -22,11 +22,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    - uses: actions/setup-dotnet@v3
+    - uses: actions/setup-dotnet@v4
       with:
         dotnet-version: | 
           6.x.x
@@ -35,12 +35,12 @@ jobs:
 
     - name: Build
       run: >-
-        dotnet build src/NexusUploader.sln --configuration Release;
+        dotnet build src/BUTR.NexusUploader.sln --configuration Release;
       shell: pwsh
 
     - name: Pack
       run: >-
-        dotnet pack src/NexusUploader.sln --configuration Release -o "./packages";
+        dotnet pack src/BUTR.NexusUploader.sln --configuration Release -o "./packages";
       shell: pwsh
 
     - name: Push to NuGet
