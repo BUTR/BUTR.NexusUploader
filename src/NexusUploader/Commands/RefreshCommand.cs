@@ -29,17 +29,14 @@ public class RefreshCommand : AsyncCommand<RefreshCommand.Settings>
     {
         _cookieService.SetSessionCookie(settings.SessionCookie);
 
-        var ckValid = await _client.RefreshSession();
-        if (ckValid)
-        {
-            _logger.LogInformation("[green]Session successfully refreshed![/]");
-        }
-        else
+        if (!await _client.RefreshSession())
         {
             _logger.LogWarning("[orange3]Session refresh [bold]failed![/][/]");
+            return 1;
         }
 
-        return ckValid ? 0 : 1;
+        _logger.LogInformation("[green]Session successfully refreshed![/]");
+        return 0;
     }
 
     public class Settings : CommandSettings

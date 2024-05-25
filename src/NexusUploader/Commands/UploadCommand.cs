@@ -1,5 +1,4 @@
-﻿using System;
-using HandlebarsDotNet;
+﻿using HandlebarsDotNet;
 
 using Microsoft.Extensions.Logging;
 
@@ -11,6 +10,7 @@ using NexusUploader.Utils;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
+using System;
 using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
@@ -78,7 +78,7 @@ public class UploadCommand : AsyncCommand<UploadCommand.Settings>
         var gameId = await _apiV1Client.GetGameId(settings.Game, settings.ApiKey);
         var game = new GameRef(settings.Game, gameId);
         _logger.LogInformation("Game details loaded: {Game}/{GameId}", settings.Game, gameId);
-        
+
         if (!string.IsNullOrWhiteSpace(settings.PreviousFile))
         {
             if (string.Equals(settings.PreviousFile, "auto", StringComparison.OrdinalIgnoreCase))
@@ -104,10 +104,10 @@ public class UploadCommand : AsyncCommand<UploadCommand.Settings>
         _logger.LogInformation("Preparing to upload \'{ModFilePath}\' to Nexus Mods upload API", settings.ModFilePath);
         var upload = await _uploader.UploadFile(game, settings.ModId, new FileInfo(Path.GetFullPath(settings.ModFilePath)));
         _logger.LogInformation("File successfully uploaded to Nexus Mods with ID \'{Id}\'", upload.Id);
-        
+
         var available = await _uploader.CheckStatus(upload);
         _logger.LogDebug("File \'{Id}\' confirmed as assembled: {Available}", upload.Id, available);
-        
+
         _logger.LogInformation("Adding uploaded file to mod {ModId}", settings.ModId);
         _logger.LogDebug("Using file options: {FileOpts}", fileOpts.ToString());
         if (!await _manager.AddFile(game, settings.ModId, upload, fileOpts))
@@ -130,10 +130,6 @@ public class UploadCommand : AsyncCommand<UploadCommand.Settings>
         [CommandArgument(1, "<archive-file>")]
         [Description("Path to the mod archive file to upload.")]
         public string ModFilePath { get; set; } = default!;
-
-        [CommandOption("-i|--interactive")]
-        [Description("Allow interactive prompts for missing settings.")]
-        public bool AllowInteractive { get; set; } = default!;
 
         [CommandOption("-k|--api-key")]
         [EnvironmentVariable("APIKEY")]
@@ -178,16 +174,9 @@ public class UploadCommand : AsyncCommand<UploadCommand.Settings>
 
         public override ValidationResult Validate()
         {
-            if (!AreSettingsValid() && !AllowInteractive)
+            if (!AreSettingsValid())
             {
-                return ValidationResult.Error("Not all required settings provided and unex is not running interactively!");
-            }
-
-            if (AllowInteractive)
-            {
-                //prompt here
-                // CHeck settings validity via !AreSettingsValid()
-                return ValidationResult.Error("Interactive execution not currently implemented. Sorry about that!");
+                return ValidationResult.Error("Not all required settings provided!");
             }
 
             return base.Validate();

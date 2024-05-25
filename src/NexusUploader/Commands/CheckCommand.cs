@@ -33,7 +33,7 @@ public class CheckCommand : AsyncCommand<CheckCommand.Settings>
 
         var apiValid = true;
         var ckValid = true;
-        
+
         if (settings.ApiKey.IsSet())
         {
             apiValid = await _apiV1Client.CheckValidKey(settings.ApiKey);
