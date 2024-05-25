@@ -1,58 +1,59 @@
+﻿using Microsoft.Extensions.Http;
+using Microsoft.Extensions.Logging;
+
+using NexusUploader.Services;
+
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
-using Microsoft.Extensions.Http;
-using Microsoft.Extensions.Logging;
-using NexusUploader.Services;
 
-namespace NexusUploader.Http
+namespace NexusUploader.Utils;
+
+public class NexusMessageHandlerBuilder : HttpMessageHandlerBuilder
 {
-    public class NexusMessageHandlerBuilder : HttpMessageHandlerBuilder
+    private readonly ILogger _logger;
+    private readonly CookieService _cookies;
+
+    public override string Name { get; set; } = nameof(NexusMessageHandlerBuilder);
+    public override HttpMessageHandler PrimaryHandler { get; set; } = default!;
+
+    public override IList<DelegatingHandler> AdditionalHandlers => new List<DelegatingHandler>();
+
+    public NexusMessageHandlerBuilder(ILogger<NexusMessageHandlerBuilder> logger, CookieService cookieService)
     {
-        private readonly CookieService _cookies;
-        private readonly ILogger<NexusMessageHandlerBuilder> _logger;
+        _logger = logger;
+        _cookies = cookieService;
+    }
 
-        public NexusMessageHandlerBuilder(CookieService cookieService, ILogger<NexusMessageHandlerBuilder> logger)
+    // Our custom builder doesn't care about any of the above.
+    public override HttpMessageHandler Build()
+    {
+        var container = GetCookies();
+        return new HttpClientHandler
         {
-            _cookies = cookieService;
-            _logger = logger;
-        }
+            CookieContainer = container
+            // Our custom settings
+        };
+    }
 
-        public override string Name { get; set; }
-        public override HttpMessageHandler PrimaryHandler { get; set; }
-
-        public override IList<DelegatingHandler> AdditionalHandlers => new List<DelegatingHandler>();
-
-        // Our custom builder doesn't care about any of the above.
-        public override HttpMessageHandler Build()
+    private CookieContainer GetCookies()
+    {
+        var c = new CookieContainer();
+        try
         {
-            var container = GetCookies();
-            return new HttpClientHandler
+            foreach (var (name, value) in _cookies.GetCookies())
             {
-                CookieContainer = container
-                // Our custom settings
-            };
-        }
-
-        private CookieContainer GetCookies()
-        {
-            var c = new CookieContainer();
-            try
-            {
-                foreach (var (name, value) in _cookies.GetCookies())
+                if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(value))
                 {
-                    if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(value))
-                    {
-                        c.Add(new Cookie(name, value) {Domain = "nexusmods.com"});
-                    }
+                    c.Add(new Cookie(name, value) { Domain = "nexusmods.com" });
                 }
             }
-            catch
-            {
-                _logger.LogError("Error encountered while loading cookies! [bold] This probably won't work![/]");
-            }
-
-            return c;
         }
+        catch
+        {
+            _logger.LogError("Error encountered while loading cookies! [bold] This probably won't work![/]");
+        }
+
+        return c;
     }
 }

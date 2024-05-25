@@ -1,70 +1,107 @@
-﻿using System;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using NexusUploader.Http;
+
+using NexusUploader.Commands;
+using NexusUploader.Extensions;
 using NexusUploader.Services;
-using Spectre.Cli;
-using Spectre.Cli.AppInfo;
-using Spectre.Cli.Extensions.DependencyInjection;
+using NexusUploader.Utils;
 
-namespace NexusUploader
+using Spectre.Console.Cli;
+
+using System;
+using System.Threading.Tasks;
+
+namespace NexusUploader;
+
+public class Program
 {
-    class Program
+    public static async Task<int> Main(string[] args)
     {
-        static async Task<int> Main(string[] args)
-        {
-            var confOverride = Environment.GetEnvironmentVariable("UNEX_CONFIG");
-            IConfigurationBuilder configBuilder = new ConfigurationBuilder()
-                .SetBasePath(System.IO.Directory.GetCurrentDirectory())
-                .AddFile("unex")
-                .AddEnvironmentVariables("UNEX_");
-            if (confOverride.IsSet() && System.IO.File.Exists(confOverride))
-            {
-                configBuilder.AddFile(confOverride);
-            }
+        return await CreateHostBuilder()
+            .Build()
+            .RunAsync(args);
+    }
 
-            IConfiguration config = configBuilder.Build();
-            var opts = config.Get<ModConfiguration>();
-            var services = new ServiceCollection();
-            services.AddLogging(logging =>
+    private static IHostBuilder CreateHostBuilder() => Host.CreateDefaultBuilder()
+        .ConfigureAppConfiguration((ctx, builder) =>
+        {
+            builder.AddFile("unex");
+            builder.AddEnvironmentVariables("UNEX_");
+        })
+        .ConfigureLogging((ctx, logging) =>
+        {
+            logging.SetMinimumLevel(LogLevel.Trace);
+            logging.ClearProviders();
+            logging.AddInlineSpectreConsole(c => { c.LogLevel = GetLogLevel(); });
+            logging.AddFilter("System.Net.Http", LogLevel.Warning);
+        })
+        .ConfigureServices((ctx, services) =>
+        {
+            var assemblyName = typeof(Program).Assembly.GetName();
+            var userAgent = $"{assemblyName.Name ?? "ERROR"} v{assemblyName.Version?.ToString() ?? "ERROR"} (github.com/BUTR)";
+
+            services.AddHttpClient<UsersClient>(client =>
             {
-                logging.SetMinimumLevel(LogLevel.Trace);
-                logging.AddInlineSpectreConsole(c => { c.LogLevel = GetLogLevel(); });
-                logging.AddFilter("System.Net.Http", LogLevel.Warning);
+                client.BaseAddress = new Uri("https://users.nexusmods.com");
+                client.DefaultRequestHeaders.Add("User-Agent", userAgent);
+            }).ConfigurePrimaryHttpMessageHandler<NexusCookieHandler>();
+
+            services.AddHttpClient<ManageClient>(client =>
+            {
+                client.BaseAddress = new Uri("https://www.nexusmods.com");
+                client.DefaultRequestHeaders.Add("User-Agent", userAgent);
+            }).ConfigurePrimaryHttpMessageHandler<NexusCookieHandler>();
+
+            services.AddHttpClient<UploadClient>(client =>
+            {
+                client.BaseAddress = new Uri("https://upload.nexusmods.com");
+                client.DefaultRequestHeaders.Add("User-Agent", userAgent);
+            }).ConfigurePrimaryHttpMessageHandler<NexusCookieHandler>();
+
+            services.AddHttpClient<ApiV1Client>(client =>
+            {
+                client.BaseAddress = new Uri("https://api.nexusmods.com");
+                client.DefaultRequestHeaders.Add("User-Agent", userAgent);
             });
-            services.AddNexusApiClient();
-            services.AddNexusClient();
-            services.AddUploadClient();
-            services.AddSingleton<ModConfiguration>(opts ?? new ModConfiguration());
+
+            services.AddSingleton<NexusCookieHandler>();
             services.AddSingleton<CookieService>();
-            // services.AddSingleton<ILoggingConfiguration>(GetDefaultLogging());
-            var app = new CommandApp(new DependencyInjectionRegistrar(services));
-            app.Configure(c =>
+
+            // Add command line with default command
+            services.AddCommandLine(config =>
             {
-                c.SetApplicationName("unex");
+                config.SetApplicationName("unex");
+
                 if (GetLogLevel() < LogLevel.Information)
-                {
-                    c.PropagateExceptions();
-                }
+                    config.PropagateExceptions();
 
-                c.AddCommand<InfoCommand>("info");
-                c.AddCommand<ChangelogCommand>("changelog");
-                c.AddCommand<UploadCommand>("upload");
-                c.AddCommand<CheckCommand>("check");
+                config.AddCommand<ChangelogCommand>("changelog")
+                    .WithDescription("Add a changelog entry for a specific mod version")
+                    .WithExample(["changelog", "<version>", "-c", "<changelog>"]);
+
+                config.AddCommand<UploadCommand>("upload")
+                    .WithDescription("Upload a mod")
+                    .WithExample(["upload", "<mod-id>", "<archive-file>", "-v", "<version>"]);
+
+                config.AddCommand<CheckCommand>("check")
+                    .WithDescription("Check the validity on an API Key and/or Session Cookie")
+                    .WithExample(["check", "-s", "<session-cookie>", "-k", "<api-key>"]);
+
+                config.AddCommand<RefreshCommand>("refresh")
+                    .WithDescription("Refresh the session cookie")
+                    .WithExample(["refresh", "-s", "<session-cookie>"]);
             });
-            return await app.RunAsync(args);
-        }
+        });
 
-        private static LogLevel GetLogLevel()
-        {
-            var envVar = System.Environment.GetEnvironmentVariable("UNEX_DEBUG");
-            return string.IsNullOrWhiteSpace(envVar)
-                ? LogLevel.Information
-                : envVar.ToLower() == "trace"
-                    ? LogLevel.Trace
-                    : LogLevel.Debug;
-        }
+    private static LogLevel GetLogLevel()
+    {
+        var envVar = Environment.GetEnvironmentVariable("UNEX_DEBUG");
+        return string.IsNullOrWhiteSpace(envVar)
+            ? LogLevel.Information
+            : envVar.ToLower() == "trace"
+                ? LogLevel.Trace
+                : LogLevel.Debug;
     }
 }

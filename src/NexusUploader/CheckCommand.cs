@@ -1,96 +1,86 @@
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
+
+using NexusUploader.Extensions;
 using NexusUploader.Services;
-using Spectre.Cli;
+using NexusUploader.Utils;
 
-namespace NexusUploader
+using Spectre.Console;
+using Spectre.Console.Cli;
+
+using System.ComponentModel;
+using System.Threading.Tasks;
+
+namespace NexusUploader.Commands;
+
+public class CheckCommand : AsyncCommand<CheckCommand.Settings>
 {
-    public class CheckCommand : AsyncCommand<CheckCommand.Settings>
+    private readonly ILogger _logger;
+    private readonly CookieService _cookieService;
+    private readonly ApiV1Client _apiV1Client;
+    private readonly ManageClient _manager;
+
+    public CheckCommand(ILogger<CheckCommand> logger, CookieService cookieService, ApiV1Client apiV1Client, ManageClient manager)
     {
-        private readonly ApiClient _apiClient;
-        private readonly ILogger<CheckCommand> _logger;
-        private readonly UploadClient _uploadClient;
-        private readonly ModConfiguration _config;
-        private readonly ManageClient _manager;
+        _logger = logger;
+        _cookieService = cookieService;
+        _apiV1Client = apiV1Client;
+        _manager = manager;
+    }
 
-        public CheckCommand(ApiClient apiClient, ILogger<CheckCommand> logger, UploadClient uploadClient,
-            ModConfiguration config, ManageClient manager)
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
+    {
+        _cookieService.SetSessionCookie(settings.SessionCookie);
+
+        var apiValid = true;
+        var ckValid = true;
+        
+        if (settings.ApiKey.IsSet())
         {
-            _apiClient = apiClient;
-            _logger = logger;
-            _uploadClient = uploadClient;
-            _config = config;
-            _manager = manager;
+            apiValid = await _apiV1Client.CheckValidKey(settings.ApiKey);
+            if (apiValid)
+            {
+                _logger.LogInformation("[green]API key successfully validated![/]");
+            }
+            else
+            {
+                _logger.LogWarning("[orange3]API key validation [bold]failed![/][/]");
+            }
         }
 
-        public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
+        if (settings.SessionCookie.IsSet())
         {
-            var apiValid = !settings.ApiKey.IsSet;
-            var ckValid = !settings.RawCookie;
-            if (settings.ApiKey.IsSet)
+            ckValid = await _manager.CheckValidSession();
+            if (ckValid)
             {
-                apiValid = await _apiClient.CheckValidKey(settings.ApiKey.Value);
-                if (apiValid)
-                {
-                    _logger.LogInformation("[green]API key successfully validated![/]");
-                }
-                else
-                {
-                    _logger.LogWarning("[orange3]API key validation [bold]failed![/][/]");
-                }
+                _logger.LogInformation("[green]Cookies successfully validated![/]");
             }
-
-            if (settings.RawCookie)
+            else
             {
-                ckValid = await _manager.CheckValidSession();
-                if (ckValid)
-                {
-                    _logger.LogInformation("[green]Cookies successfully validated![/]");
-                }
-                else
-                {
-                    _logger.LogWarning("[orange3]Cookie validation [bold]failed![/][/]");
-                }
+                _logger.LogWarning("[orange3]Cookie validation [bold]failed![/][/]");
             }
-
-            return ckValid && apiValid ? 0 : 1;
         }
 
-        public class Settings : AppSettings
+        return ckValid && apiValid ? 0 : 1;
+    }
+
+    public class Settings : CommandSettings
+    {
+        [CommandOption("-k|--api-key")]
+        [EnvironmentVariable("APIKEY")]
+        [Description("The NexusMods API key.")]
+        public string ApiKey { get; set; } = default!;
+
+        [CommandOption("-s|--session-cookie")]
+        [EnvironmentVariable("SESSION_COOKIE")]
+        [Description("Value of the 'nexusmods_session' cookie. Can be a file path or the raw cookie value.")]
+        public string SessionCookie { get; set; } = default!;
+
+        public override ValidationResult Validate()
         {
-            private readonly ModConfiguration _config;
+            if (!ApiKey.IsSet() && !SessionCookie.IsSet())
+                return ValidationResult.Error("You must specify either --key or --cookie to check API keys or cookies respectively.");
 
-            public Settings(ModConfiguration config)
-            {
-                _config = config;
-            }
-
-            [CommandOption("-k|--key [value]")]
-            public FlagValue<string> ApiKey { get; set; }
-
-            [CommandOption("-c|--cookie")]
-            public bool RawCookie { get; set; }
-
-            public override ValidationResult Validate()
-            {
-                if (_config.Cookies.IsSet())
-                {
-                    RawCookie = true;
-                }
-
-                if (!ApiKey.IsSet && _config.ApiKey.IsSet())
-                {
-                    ApiKey.Value = _config.ApiKey;
-                    ApiKey.IsSet = true;
-                }
-
-                if (!ApiKey.IsSet && !RawCookie)
-                {
-                    return ValidationResult.Error("You must specify either --key or --cookie to check API keys or cookies respectively.");
-                }
-
-                return base.Validate();
-            }
+            return base.Validate();
         }
     }
 }

@@ -1,207 +1,196 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System;
+using HandlebarsDotNet;
+
+using Microsoft.Extensions.Logging;
+
+using NexusUploader.Extensions;
+using NexusUploader.Models;
+using NexusUploader.Services;
+using NexusUploader.Utils;
+
+using Spectre.Console;
+using Spectre.Console.Cli;
+
+using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
-using HandlebarsDotNet;
-using Microsoft.Extensions.Logging;
-using NexusUploader.Services;
-using Spectre.Cli;
-using Spectre.Console;
-using ValidationResult = Spectre.Cli.ValidationResult;
-using DescriptionAttribute = System.ComponentModel.DescriptionAttribute;
 
-namespace NexusUploader
+using FileOptions = NexusUploader.Models.FileOptions;
+
+namespace NexusUploader.Commands;
+
+public class UploadCommand : AsyncCommand<UploadCommand.Settings>
 {
-    public class UploadCommand : AsyncCommand<UploadCommand.Settings>
-    {
-        private readonly ManageClient _manager;
-        private readonly ApiClient _apiClient;
-        private readonly UploadClient _uploader;
-        private readonly ILogger<UploadCommand> _logger;
+    private readonly ILogger _logger;
+    private readonly ManageClient _manager;
+    private readonly ApiV1Client _apiV1Client;
+    private readonly UploadClient _uploader;
 
-        public UploadCommand(ManageClient client, ApiClient apiClient, UploadClient uploader,
-            ILogger<UploadCommand> logger)
+    public UploadCommand(ILogger<UploadCommand> logger, ManageClient client, ApiV1Client apiV1Client, UploadClient uploader)
+    {
+        _logger = logger;
+        _manager = client;
+        _apiV1Client = apiV1Client;
+        _uploader = uploader;
+    }
+
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
+    {
+        var fileOpts = new FileOptions(settings.FileName, settings.FileVersion)
         {
-            _manager = client;
-            _apiClient = apiClient;
-            _uploader = uploader;
-            _logger = logger;
+            Description = settings.FileDescription
+        };
+
+        try
+        {
+            var compAction = Handlebars.Compile(fileOpts.Description);
+            var result = compAction?.Invoke(fileOpts);
+            if (!string.IsNullOrWhiteSpace(result) && !string.Equals(fileOpts.Description, result))
+            {
+                AnsiConsole.MarkupLine("Compiled description template using current file options.");
+                fileOpts.Description = result;
+            }
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[bold red]ERROR[/]: {ex.Message}");
         }
 
-        public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
+        if (settings.RemoveDownloadWithManager.IsSet)
         {
-            var config = settings.MergedConfiguration;
-            var fileOpts = new FileOptions(config.FileName, settings.FileVersion)
-                {Description = config.FileDescription};
-            try
+            _logger.LogInformation("Remove Download with Manager option: {RemoveDownloadWithManager}", settings.RemoveDownloadWithManager.Value);
+            fileOpts.RemoveDownloadWithManager = settings.RemoveDownloadWithManager.Value;
+        }
+
+        if (settings.SkipMainVersionUpdate is { IsSet: true, Value: true })
+        {
+            _logger.LogWarning("Skipping mod version update!");
+            fileOpts.UpdateMainVersion = false;
+        }
+
+        if (settings.SetMainVortexFile.IsSet)
+        {
+            _logger.LogInformation("Setting file as main Vortex file: {SetMainVortexFile}", settings.SetMainVortexFile.Value);
+            fileOpts.SetAsMainVortex = settings.SetMainVortexFile.Value;
+        }
+
+        _logger.LogInformation("Attempting to retrieve game details for \'{ConfigGame}\'", settings.Game);
+        var gameId = await _apiV1Client.GetGameId(settings.Game, settings.ApiKey);
+        var game = new GameRef(settings.Game, gameId);
+        _logger.LogInformation("Game details loaded: {Game}/{GameId}", settings.Game, gameId);
+        
+        if (!string.IsNullOrWhiteSpace(settings.PreviousFile))
+        {
+            if (string.Equals(settings.PreviousFile, "auto", StringComparison.OrdinalIgnoreCase))
             {
-                var compAction = Handlebars.Compile(fileOpts.Description);
-                var result = compAction?.Invoke(fileOpts);
-                if (!string.IsNullOrWhiteSpace(result) && !string.Equals(fileOpts.Description, result))
+                _logger.LogInformation("Automatic file update detection enabled! Retrieving previous file versions");
+                var fileId = await _apiV1Client.GetLatestFileId(settings.Game, settings.ModId, settings.ApiKey);
+                if (fileId.HasValue)
                 {
-                    AnsiConsole.MarkupLine("Compiled description template using current file options.");
-                    fileOpts.Description = result;
+                    _logger.LogInformation("Uploaded file will replace existing file \'{FileId}", fileId.Value);
+                    fileOpts.PreviousFileId = fileId;
                 }
-            }
-            catch (System.Exception ex)
-            {
-                AnsiConsole.MarkupLine($"[bold red]ERROR[/]: {ex.Message}");
-            }
-
-            if (settings.RemoveDownloadWithManager.IsSet)
-            {
-                _logger.LogInformation("Remove Download with Manager option: {RemoveDownloadWithManager}", settings.RemoveDownloadWithManager.Value);
-                fileOpts.RemoveDownloadWithManager = settings.RemoveDownloadWithManager.Value;
-            }
-
-            if (settings.SkipMainVersionUpdate.IsSet && settings.SkipMainVersionUpdate.Value)
-            {
-                _logger.LogWarning("Skipping mod version update!");
-                fileOpts.UpdateMainVersion = false;
-            }
-
-            if (settings.SetMainVortexFile.IsSet)
-            {
-                _logger.LogInformation("Setting file as main Vortex file: {SetMainVortexFile}", settings.SetMainVortexFile.Value);
-                fileOpts.SetAsMainVortex = settings.SetMainVortexFile.Value;
-            }
-
-            if (!IsConfigurationValid(settings) && !settings.AllowInteractive)
-            {
-                AnsiConsole.MarkupLine("[bold red]ERROR[/]: not all configuration is set correctly and unex is not running interactively. Exiting!");
-                return -1;
-            }
-
-            _logger.LogInformation("Attempting to retrieve game details for \'{ConfigGame}\'", config.Game);
-            var gameId = await _apiClient.GetGameId(config.Game, config.ApiKey);
-            _logger.LogInformation("Game details loaded: {Game}/{GameId}", config.Game, gameId);
-            var game = new GameRef(config.Game, gameId);
-            if (!string.IsNullOrWhiteSpace(config.PreviousFile))
-            {
-                if (config.PreviousFile == "auto")
-                {
-                    _logger.LogInformation("Automatic file update detection enabled! Retrieving previous file versions");
-                    var fileId = await _apiClient.GetLatestFileId(config.Game, config.ModId, config.ApiKey);
-                    if (fileId.HasValue)
-                    {
-                        _logger.LogInformation("Uploaded file will replace existing file \'{FileId}", fileId.Value);
-                        fileOpts.PreviousFileId = fileId;
-                    }
-                }
-                else
-                {
-                    if (int.TryParse(config.PreviousFile, out var previousId))
-                    {
-                        _logger.LogInformation("Uploaded file will replace existing file \'{PreviousId}", previousId);
-                        fileOpts.PreviousFileId = previousId;
-                    }
-
-                    ;
-                }
-            }
-
-            _logger.LogInformation("Preparing to upload \'{ModFilePath}\' to Nexus Mods upload API", settings.ModFilePath);
-            var upload = await _uploader.UploadFile(game, config.ModId, new FileInfo(Path.GetFullPath(settings.ModFilePath)));
-            _logger.LogInformation("File successfully uploaded to Nexus Mods with ID \'{Id}\'", upload.Id);
-            var available = await _uploader.CheckStatus(upload);
-            _logger.LogDebug("File \'{Id}\' confirmed as assembled: {Available}", upload.Id, available);
-            _logger.LogInformation("Adding uploaded file to mod {ModId}", config.ModId);
-            _logger.LogDebug("Using file options: {FileOpts}", fileOpts.ToString());
-            var success = await _manager.AddFile(game, config.ModId, upload, fileOpts);
-            if (success)
-            {
-                _logger.LogInformation("{OriginalFile} successfully uploaded and added to mod {ModId}!", upload.OriginalFile, config.ModId);
-                _logger.LogInformation("Now go ask @Pickysaurus when a real API will be available! ;)");
-                return 0;
             }
             else
             {
-                _logger.LogWarning("There was an error adding {OriginalFile} to mod {ModId}!", upload.OriginalFile, config.ModId);
-                return 1;
+                if (int.TryParse(settings.PreviousFile, out var previousId))
+                {
+                    _logger.LogInformation("Uploaded file will replace existing file \'{PreviousId}", previousId);
+                    fileOpts.PreviousFileId = previousId;
+                }
             }
         }
 
-        private bool IsConfigurationValid(Settings settings)
+        _logger.LogInformation("Preparing to upload \'{ModFilePath}\' to Nexus Mods upload API", settings.ModFilePath);
+        var upload = await _uploader.UploadFile(game, settings.ModId, new FileInfo(Path.GetFullPath(settings.ModFilePath)));
+        _logger.LogInformation("File successfully uploaded to Nexus Mods with ID \'{Id}\'", upload.Id);
+        
+        var available = await _uploader.CheckStatus(upload);
+        _logger.LogDebug("File \'{Id}\' confirmed as assembled: {Available}", upload.Id, available);
+        
+        _logger.LogInformation("Adding uploaded file to mod {ModId}", settings.ModId);
+        _logger.LogDebug("Using file options: {FileOpts}", fileOpts.ToString());
+        if (!await _manager.AddFile(game, settings.ModId, upload, fileOpts))
         {
-            return true;
-            //TODO: obviously
+            _logger.LogWarning("There was an error adding {OriginalFile} to mod {ModId}!", upload.OriginalFile, settings.ModId);
+            return 1;
         }
 
-        public class Settings : AppSettings
+        _logger.LogInformation("{OriginalFile} successfully uploaded and added to mod {ModId}!", upload.OriginalFile, settings.ModId);
+        _logger.LogInformation("Now go ask @Pickysaurus when a real API will be available! ;)");
+        return 0;
+    }
+
+    public class Settings : CommandSettings
+    {
+        [CommandArgument(0, "<mod-id>")]
+        [Description("The NexusMods mod Id to upload the file to.")]
+        public int ModId { get; set; } = default!;
+
+        [CommandArgument(1, "<archive-file>")]
+        [Description("Path to the mod archive file to upload.")]
+        public string ModFilePath { get; set; } = default!;
+
+        [CommandOption("-i|--interactive")]
+        [Description("Allow interactive prompts for missing settings.")]
+        public bool AllowInteractive { get; set; } = default!;
+
+        [CommandOption("-k|--api-key")]
+        [EnvironmentVariable("APIKEY")]
+        [Description("The NexusMods API key.")]
+        public string ApiKey { get; set; } = default!;
+
+        [CommandOption("-g|--game")]
+        [EnvironmentVariable("GAME")]
+        [Description("The NexusMods game name (domain) to upload the mod to. Can be found in the URL of the game page.")]
+        public string Game { get; set; } = default!;
+
+        [CommandOption("-f|--file-name")]
+        [EnvironmentVariable("FILENAME")]
+        [Description("Name for the file on NexusMods.")]
+        public string FileName { get; set; } = default!;
+
+        [CommandOption("-v|--version <value>")]
+        [Description("Version for your uploaded file. May also update your main version.")]
+        public string FileVersion { get; set; } = default!;
+
+        [EnvironmentVariable("FILEDESCRIPTION")]
+        [Description("Description for the file on NexusMods.")]
+        public string FileDescription { get; set; } = default!;
+
+        [EnvironmentVariable("PREVIOUSFILE")]
+        [Description("Whether to remove the previous file.")]
+        public string PreviousFile { get; set; } = default!;
+
+        [CommandOption("--remove-download-with-manager [value]")]
+        [Description("Removes the Download With Manager button")]
+        public FlagValue<bool> RemoveDownloadWithManager { get; set; } = default!;
+
+        [CommandOption("--no-version-update [value]")]
+        [Description("Skips updating your mod's main version to match this file's version")]
+        public FlagValue<bool> SkipMainVersionUpdate { get; set; } = default!;
+
+        [CommandOption("--set-main-vortex [value]")]
+        [Description("Sets this file as the main Vortex file (for the Download with Manager buttons)")]
+        public FlagValue<bool> SetMainVortexFile { get; set; } = default!;
+
+        private bool AreSettingsValid() => ModFilePath.IsSet() && FileVersion.IsSet() && ApiKey.IsSet() && FileName.IsSet() && ModId != default;
+
+        public override ValidationResult Validate()
         {
-            private readonly ModConfiguration _config;
-
-            public ModConfiguration MergedConfiguration => _config;
-
-            public Settings(ModConfiguration config)
+            if (!AreSettingsValid() && !AllowInteractive)
             {
-                _config = config;
+                return ValidationResult.Error("Not all required settings provided and unex is not running interactively!");
             }
 
-            [CommandArgument(0, "<mod-id>")]
-            public int ModId { get; set; }
-
-            [CommandArgument(1, "<archive-file>")]
-            public string ModFilePath { get; set; }
-
-            [CommandOption("-i|--interactive")]
-            public bool AllowInteractive { get; set; }
-
-            [CommandOption("-k|--api-key [keyValue]")]
-            public FlagValue<string> ApiKey { get; set; }
-
-            [CommandOption("-f|--file-name [value]")]
-            [Description("Name for the file on Nexus Mods")]
-            public FlagValue<string> FileName { get; set; }
-
-            [CommandOption("-v|--version <value>")]
-            [Description("Version for your uploaded file. May also update your main version.")]
-            [Required]
-            public string FileVersion { get; set; }
-
-            [CommandOption("--remove-download-with-manager [value]")]
-            [Description("Removes the Download With Manager button")]
-            public FlagValue<bool> RemoveDownloadWithManager { get; set; }
-
-            [CommandOption("--no-version-update [value]")]
-            [Description("Skips updating your mod's main version to match this file's version")]
-            public FlagValue<bool> SkipMainVersionUpdate { get; set; }
-
-            [CommandOption("--set-main-vortex [value]")]
-            [Description("Sets this file as the main Vortex file (for the Download with Manager buttons)")]
-            public FlagValue<bool> SetMainVortexFile { get; set; }
-
-            private bool IsSettingsValid()
+            if (AllowInteractive)
             {
-                return ModFilePath.IsSet()
-                       && FileVersion.IsSet()
-                       && (ApiKey.IsSet || _config.ApiKey.IsSet())
-                       && (FileName.IsSet || _config.FileName.IsSet())
-                       && (ModId != default(int) || _config.ModId != default(int))
-                       && _config.Game.IsSet();
+                //prompt here
+                // CHeck settings validity via !AreSettingsValid()
+                return ValidationResult.Error("Interactive execution not currently implemented. Sorry about that!");
             }
 
-            public override ValidationResult Validate()
-            {
-                if (!IsSettingsValid() && !AllowInteractive)
-                {
-                    return ValidationResult.Error(
-                        "Not all required settings provided and unex is not running interactively!");
-                }
-                else if (AllowInteractive)
-                {
-                    //prompt here
-                    return ValidationResult.Error("Interactive execution not currently implemented. Sorry about that!");
-                }
-                else if (IsSettingsValid())
-                {
-                    _config.ApiKey = ApiKey.IsSet ? ApiKey.Value : _config.ApiKey;
-                    _config.FileDescription ??= string.Empty;
-                    _config.FileName = FileName.IsSet ? FileName.Value : _config.FileName;
-                    _config.ModId = ModId == default(int) ? _config.ModId : ModId;
-                }
-
-                return base.Validate();
-            }
+            return base.Validate();
         }
     }
 }

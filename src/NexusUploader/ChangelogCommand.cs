@@ -1,96 +1,81 @@
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
+
+using NexusUploader.Extensions;
+using NexusUploader.Models;
 using NexusUploader.Services;
-using Spectre.Cli;
+using NexusUploader.Utils;
 
-namespace NexusUploader
+using Spectre.Console;
+using Spectre.Console.Cli;
+
+using System.ComponentModel;
+using System.Threading.Tasks;
+
+namespace NexusUploader.Commands;
+
+public class ChangelogCommand : AsyncCommand<ChangelogCommand.Settings>
 {
-    public class ChangelogCommand : AsyncCommand<ChangelogCommand.Settings>
+    private readonly ILogger _logger;
+    private readonly ManageClient _client;
+    private readonly ApiV1Client _apiV1;
+
+    public ChangelogCommand(ILogger<ChangelogCommand> logger, ManageClient uploadClient, ApiV1Client apiV1Client)
     {
-        private readonly ManageClient _client;
-        private readonly ApiClient _api;
-        private readonly ILogger<ChangelogCommand> _logger;
+        _logger = logger;
+        _client = uploadClient;
+        _apiV1 = apiV1Client;
+    }
 
-        public ChangelogCommand(ManageClient uploadClient, ApiClient apiClient, ILogger<ChangelogCommand> logger)
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
+    {
+        _logger.LogInformation("Attempting to retrieve game details for '{Game}'", settings.Game);
+        var gameId = await _apiV1.GetGameId(settings.Game, settings.ApiKey);
+        var game = new GameRef(settings.Game, gameId);
+        _logger.LogDebug("Game details loaded: {Game}/{GameId}", settings.Game, gameId);
+
+        if (!await _client.AddChangelog(game, settings.ModId, settings.ModVersion, settings.ChangelogContent))
         {
-            _client = uploadClient;
-            _api = apiClient;
-            _logger = logger;
+            _logger.LogWarning("[bold orange3]Failed![/] There was an unknown error while updating the changelog!");
+            _logger.LogWarning("Ensure that you have access to edit the requested mod and that it exists");
+            return 1;
         }
 
-        public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
+        _logger.LogInformation("[green]Success![/] Your changelog has been added for version [bold]'{ModVersionn}'[/]", settings.ModVersion);
+        return 0;
+    }
+
+    public class Settings : CommandSettings
+    {
+        [CommandOption("-k|--api-key")]
+        [EnvironmentVariable("APIKEY")]
+        [Description("The NexusMods API key.")]
+        public string ApiKey { get; set; } = default!;
+
+        [CommandOption("-g|--game")]
+        [EnvironmentVariable("GAME")]
+        [Description("The NexusMods game name (domain) to upload the mod to. Can be found in the URL of the game page.")]
+        public string Game { get; set; } = default!;
+
+        [CommandOption("-m|--mod-id")]
+        [EnvironmentVariable("MODID")]
+        [Description("The NexusMods mod Id to update the changelog for.")]
+        public int ModId { get; set; } = default!;
+
+        [CommandArgument(0, "<version>")]
+        [Description("The version of the mod to update the changelog for.")]
+        public string ModVersion { get; set; } = default!;
+
+        [CommandOption("-c|--changelog <changelog>")]
+        [EnvironmentVariable("CHANGELOG")]
+        [Description("The changelog content to add.")]
+        public string ChangelogContent { get; set; } = string.Empty;
+
+        public override ValidationResult Validate()
         {
-            var config = settings.MergedConfiguration;
-            _logger.LogInformation("Attempting to retrieve game details for \'{Game}\'", config.Game);
-            var gameId = await _api.GetGameId(config.Game, config.ApiKey);
-            _logger.LogDebug("Game details loaded: {Game}/{GameId}", config.Game, gameId);
-            var game = new GameRef(config.Game, gameId);
-            var success = await _client.AddChangelog(game, config.ModId, settings.ModVersion, settings.ChangelogContent);
-            if (success)
-            {
-                _logger.LogInformation("[green]Success![/] Your changelog has been added for version [bold]\'{ModVersionn}\'[/]", settings.ModVersion);
-                return 0;
-            }
-            else
-            {
-                _logger.LogWarning("[bold orange3]Failed![/] There was an unknown error while updating the changelog!");
-                _logger.LogWarning("Ensure that you have access to edit the requested mod and that it exists");
-                return 1;
-            }
-        }
+            if (!ChangelogContent.IsSet() || !ModVersion.IsSet() || !ApiKey.IsSet() || !Game.IsSet() || ModId == default)
+                return ValidationResult.Error("Not all required settings provided in configuration or command line!");
 
-        public class Settings : AppSettings
-        {
-            private readonly ModConfiguration _config;
-
-            public Settings(ModConfiguration config)
-            {
-                _config = config;
-            }
-
-            public ModConfiguration MergedConfiguration => _config;
-
-            [CommandOption("-k|--api-key [keyValue]")]
-            public FlagValue<string> ApiKey { get; set; }
-
-            [CommandArgument(0, "<version>")]
-            public string ModVersion { get; set; }
-
-            [CommandOption("-g|--game [game]")]
-            public FlagValue<string> Game { get; set; }
-
-            [CommandOption("-m|--mod-id [modId]")]
-            public FlagValue<int> ModId { get; set; }
-
-            [CommandArgument(1, "<changelog>")]
-            public string ChangelogContent { get; set; } = string.Empty;
-
-            private bool IsSettingsValid()
-            {
-                return ChangelogContent.IsSet()
-                       && ModVersion.IsSet()
-                       && (ApiKey.IsSet || _config.ApiKey.IsSet())
-                       && (Game.IsSet || _config.Game.IsSet())
-                       && (ModId.IsSet || _config.ModId != default(int));
-            }
-
-            public override ValidationResult Validate()
-            {
-                if (!IsSettingsValid())
-                {
-                    return ValidationResult.Error("Not all required settings provided in configuration or command line!");
-                }
-                else if (IsSettingsValid())
-                {
-                    _config.ApiKey = ApiKey.IsSet ? ApiKey.Value : _config.ApiKey;
-                    _config.ModId = ModId.IsSet ? ModId.Value : _config.ModId;
-                    _config.Game = Game.IsSet ? Game.Value : _config.Game;
-                    // _config.ModId = ModId;
-                }
-
-                return base.Validate();
-            }
-
+            return base.Validate();
         }
     }
 }
