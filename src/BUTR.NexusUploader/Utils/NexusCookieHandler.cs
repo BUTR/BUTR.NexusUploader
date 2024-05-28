@@ -14,6 +14,7 @@ public class NexusCookieHandler : HttpClientHandler
 {
     private readonly ILogger _logger;
     private readonly CookieService _cookies;
+    private bool _areCookiesSet; // Lazy loading cookies
 
     public NexusCookieHandler(ILogger<NexusCookieHandler> logger, CookieService cookieService)
     {
@@ -23,13 +24,23 @@ public class NexusCookieHandler : HttpClientHandler
 
     protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        CookieContainer = GetCookies();
+        if (!_areCookiesSet)
+        {
+            CookieContainer = GetCookies();
+            _areCookiesSet = true;
+        }
+        
         return base.Send(request, cancellationToken);
     }
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        CookieContainer = GetCookies();
+        if (!_areCookiesSet)
+        {
+            CookieContainer = GetCookies();
+            _areCookiesSet = true;
+        }
+        
         return base.SendAsync(request, cancellationToken);
     }
 
