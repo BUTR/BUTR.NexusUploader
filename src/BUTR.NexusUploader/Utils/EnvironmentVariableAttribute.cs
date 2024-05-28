@@ -16,6 +16,12 @@ public sealed class EnvironmentVariableAttribute : ParameterValueProviderAttribu
     {
         if (context.Value is not null)
         {
+            if (context.Value is string str && context.Parameter.ParameterType == typeof(int))
+            {
+                result = int.Parse(str);
+                return true;
+            }
+            
             result = context.Value;
             return true;
         }
@@ -26,7 +32,14 @@ public sealed class EnvironmentVariableAttribute : ParameterValueProviderAttribu
             return false;
         }
 
-        result = configuration.GetValue(context.Parameter.ParameterType, _name);
+        var value = configuration.GetValue(context.Parameter.ParameterType, _name);
+        if (value is string str2 && context.Parameter.ParameterType == typeof(int))
+        {
+            result = int.Parse(str2);
+            return true;
+        }
+        
+        result = value;
         return true;
     }
 }
