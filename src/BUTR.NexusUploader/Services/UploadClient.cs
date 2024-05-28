@@ -90,7 +90,7 @@ public class UploadClient
                     resumableTotalChunks = totalChunks
                 });
             var getResp = await _httpClient.GetAsync(path.ToString());
-            if (getResp.StatusCode != HttpStatusCode.NoContent)
+            if (getResp.StatusCode is not HttpStatusCode.OK and not HttpStatusCode.NoContent)
             {
                 throw new Exception("I don't even know what this means");
             }

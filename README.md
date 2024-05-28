@@ -130,6 +130,7 @@ ARGUMENTS:
 
 OPTIONS:
     -h, --help                                    Prints help information
+    -s, --session-cookie <SESSION-COOKIE>         Value of the 'nexusmods_session' cookie. Can be a file path or the raw cookie value. Available Environment Variable: UNEX_SESSION_COOKIE
     -k, --api-key                                 The NexusMods API key. Available Environment Variable: UNEX_APIKEY
     -g, --game                                    The NexusMods game name (domain) to upload the mod to. Can be found in the URL of the game page. Available Environment Variable: UNEX_GAME
     -f, --file-name                               Name for the file on NexusMods. Available Environment Variable: UNEX_FILENAME

@@ -22,13 +22,15 @@ namespace BUTR.NexusUploader.Commands;
 public class UploadCommand : AsyncCommand<UploadCommand.Settings>
 {
     private readonly ILogger _logger;
+    private readonly CookieService _cookieService;
     private readonly ManageClient _manager;
     private readonly ApiV1Client _apiV1Client;
     private readonly UploadClient _uploader;
 
-    public UploadCommand(ILogger<UploadCommand> logger, ManageClient client, ApiV1Client apiV1Client, UploadClient uploader)
+    public UploadCommand(ILogger<UploadCommand> logger, CookieService cookieService, ManageClient client, ApiV1Client apiV1Client, UploadClient uploader)
     {
         _logger = logger;
+        _cookieService = cookieService;
         _manager = client;
         _apiV1Client = apiV1Client;
         _uploader = uploader;
@@ -36,6 +38,8 @@ public class UploadCommand : AsyncCommand<UploadCommand.Settings>
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
+        _cookieService.SetSessionCookie(settings.SessionCookie);
+
         var fileOpts = new FileOptions(settings.FileName, settings.FileVersion)
         {
             Description = settings.FileDescription
@@ -131,6 +135,11 @@ public class UploadCommand : AsyncCommand<UploadCommand.Settings>
         [Description("Path to the mod archive file to upload.")]
         public string ModFilePath { get; set; } = string.Empty;
 
+        [CommandOption("-s|--session-cookie <session-cookie>")]
+        [EnvironmentVariable("SESSION_COOKIE")]
+        [Description("Value of the 'nexusmods_session' cookie. Can be a file path or the raw cookie value. Available Environment Variable: UNEX_SESSION_COOKIE")]
+        public string SessionCookie { get; set; } = string.Empty;
+        
         [CommandOption("-k|--api-key")]
         [EnvironmentVariable("APIKEY")]
         [Description("The NexusMods API key. Available Environment Variable: UNEX_APIKEY")]
