@@ -6,7 +6,7 @@ on:
     branches: [ master ]
 
 jobs:
-  build-and-test:
+  upload-artifact:
     name: Upload Artifact
     runs-on: ubuntu-latest
     steps:
@@ -22,6 +22,7 @@ jobs:
   ###########################
   publish-on-nexusmods:
     if: github.ref == 'refs/heads/master'
+    needs: [upload-artifact]
     uses: BUTR/workflows/.github/workflows/release-nexusmods.yml@master
     with:
       nexusmods_game_id: ihatethisgame
