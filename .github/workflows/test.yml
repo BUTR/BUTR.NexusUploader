@@ -1,0 +1,36 @@
+
+name: Test Publish
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build-and-test:
+    name: Upload Artifact
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: test
+        path: src/BUTR.NexusUploader/Test.7z
+
+  ###########################
+  #        NEXUSMODS        #
+  ###########################
+  publish-on-nexusmods:
+    if: github.ref == 'refs/heads/master'
+    uses: BUTR/workflows/.github/workflows/release-nexusmods.yml@master
+    with:
+      nexusmods_game_id: ihatethisgame
+      nexusmods_mod_id: 4
+      mod_filename: test
+      mod_version: "0.0.${{ github.run_id }}"
+      mod_description: |
+          Test File Please Ignore
+      artifact_name: test
+    secrets:
+      NEXUSMODS_APIKEY: ${{ secrets.ARAGAS_NEXUSMODS_API_KEY }}
+      NEXUSMODS_SESSION_COOKIE: ${{ secrets.ARAGAS_NEXUSMODS_SESSION_COOKIE }}
