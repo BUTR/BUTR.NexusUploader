@@ -16,18 +16,22 @@ namespace BUTR.NexusUploader.Commands;
 public class ChangelogCommand : AsyncCommand<ChangelogCommand.Settings>
 {
     private readonly ILogger _logger;
+    private readonly CookieService _cookieService;
     private readonly ManageClient _client;
     private readonly ApiV1Client _apiV1;
 
-    public ChangelogCommand(ILogger<ChangelogCommand> logger, ManageClient uploadClient, ApiV1Client apiV1Client)
+    public ChangelogCommand(ILogger<ChangelogCommand> logger, CookieService cookieService, ManageClient uploadClient, ApiV1Client apiV1Client)
     {
         _logger = logger;
+        _cookieService = cookieService;
         _client = uploadClient;
         _apiV1 = apiV1Client;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
+        _cookieService.SetSessionCookie(settings.SessionCookie);
+
         _logger.LogInformation("Attempting to retrieve game details for '{Game}'", settings.Game);
         var gameId = await _apiV1.GetGameId(settings.Game, settings.ApiKey);
         var game = new GameRef(settings.Game, gameId);
@@ -46,6 +50,11 @@ public class ChangelogCommand : AsyncCommand<ChangelogCommand.Settings>
 
     public class Settings : CommandSettings
     {
+        [CommandOption("-s|--session-cookie <session-cookie>")]
+        [EnvironmentVariable("SESSION_COOKIE")]
+        [Description("Value of the 'nexusmods_session' cookie. Can be a file path or the raw cookie value. Available Environment Variable: UNEX_SESSION_COOKIE")]
+        public string SessionCookie { get; set; } = string.Empty;
+        
         [CommandOption("-k|--api-key")]
         [EnvironmentVariable("APIKEY")]
         [Description("The NexusMods API key. Available Environment Variable: UNEX_APIKEY")]
