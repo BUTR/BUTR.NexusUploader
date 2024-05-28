@@ -4,7 +4,7 @@
     <OutputType>Exe</OutputType>
     <TargetFrameworks>net6.0;net7.0;net8.0</TargetFrameworks>
     <DebugType>embedded</DebugType>
-    <Version>3.0.5</Version>
+    <Version>3.0.6</Version>
     <LangVersion>12</LangVersion>
     <Nullable>enable</Nullable>
 
