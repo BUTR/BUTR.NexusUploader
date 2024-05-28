@@ -68,12 +68,12 @@ public class CheckCommand : AsyncCommand<CheckCommand.Settings>
         [CommandOption("-k|--api-key")]
         [EnvironmentVariable("APIKEY")]
         [Description("The NexusMods API key. Available Environment Variable: UNEX_APIKEY")]
-        public string ApiKey { get; set; } = default!;
+        public string ApiKey { get; set; } = string.Empty;
 
         [CommandOption("-s|--session-cookie")]
         [EnvironmentVariable("SESSION_COOKIE")]
         [Description("Value of the 'nexusmods_session' cookie. Can be a file path or the raw cookie value. Available Environment Variable: UNEX_SESSION_COOKIE")]
-        public string SessionCookie { get; set; } = default!;
+        public string SessionCookie { get; set; } = string.Empty;
 
         public override ValidationResult Validate()
         {

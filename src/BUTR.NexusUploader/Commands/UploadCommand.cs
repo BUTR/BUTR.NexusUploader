@@ -125,54 +125,54 @@ public class UploadCommand : AsyncCommand<UploadCommand.Settings>
     {
         [CommandArgument(0, "<mod-id>")]
         [Description("The NexusMods mod Id to upload the file to.")]
-        public int ModId { get; set; } = default!;
+        public int ModId { get; set; } = 0;
 
         [CommandArgument(1, "<archive-file>")]
         [Description("Path to the mod archive file to upload.")]
-        public string ModFilePath { get; set; } = default!;
+        public string ModFilePath { get; set; } = string.Empty;
 
         [CommandOption("-k|--api-key")]
         [EnvironmentVariable("APIKEY")]
         [Description("The NexusMods API key. Available Environment Variable: UNEX_APIKEY")]
-        public string ApiKey { get; set; } = default!;
+        public string ApiKey { get; set; } = string.Empty;
 
         [CommandOption("-g|--game")]
         [EnvironmentVariable("GAME")]
         [Description("The NexusMods game name (domain) to upload the mod to. Can be found in the URL of the game page. Available Environment Variable: UNEX_GAME")]
-        public string Game { get; set; } = default!;
+        public string Game { get; set; } = string.Empty;
 
         [CommandOption("-f|--file-name")]
         [EnvironmentVariable("FILENAME")]
         [Description("Name for the file on NexusMods. Available Environment Variable: UNEX_FILENAME")]
-        public string FileName { get; set; } = default!;
+        public string FileName { get; set; } = string.Empty;
 
         [CommandOption("-v|--version <value>")]
         [EnvironmentVariable("FILEVERSION")]
         [Description("Version for your uploaded file. May also update your main version. Available Environment Variable: UNEX_FILEVERSION")]
-        public string FileVersion { get; set; } = default!;
+        public string FileVersion { get; set; } = string.Empty;
 
         [EnvironmentVariable("FILEDESCRIPTION")]
         [Description("Description for the file on NexusMods. Available Environment Variable: UNEX_FILEDESCRIPTION")]
-        public string FileDescription { get; set; } = default!;
+        public string FileDescription { get; set; } = string.Empty;
 
         [EnvironmentVariable("PREVIOUSFILE")]
         [Description("The Id of the previous file to remove. Available Environment Variable: UNEX_PREVIOUSFILE")]
-        public string PreviousFile { get; set; } = default!;
+        public string PreviousFile { get; set; } = string.Empty;
 
         [CommandOption("--remove-download-with-manager [value]")]
         [EnvironmentVariable("REMOVEDOWNLOADWITHMANAGER")]
         [Description("Removes the Download With Manager button. Available Environment Variable: UNEX_REMOVEDOWNLOADWITHMANAGER")]
-        public FlagValue<bool> RemoveDownloadWithManager { get; set; } = default!;
+        public FlagValue<bool> RemoveDownloadWithManager { get; set; } = new() { IsSet = false };
 
         [CommandOption("--no-version-update [value]")]
         [EnvironmentVariable("SKIPMAINVERSIONUPDATE")]
         [Description("Skips updating your mod's main version to match this file's version. Available Environment Variable: UNEX_SKIPMAINVERSIONUPDATE")]
-        public FlagValue<bool> SkipMainVersionUpdate { get; set; } = default!;
+        public FlagValue<bool> SkipMainVersionUpdate { get; set; } = new() { IsSet = false };
 
         [CommandOption("--set-main-vortex [value]")]
         [EnvironmentVariable("SETMAINVORTEXFILE")]
         [Description("Sets this file as the main Vortex file (for the Download with Manager buttons). Available Environment Variable: UNEX_SETMAINVORTEXFILE")]
-        public FlagValue<bool> SetMainVortexFile { get; set; } = default!;
+        public FlagValue<bool> SetMainVortexFile { get; set; } = new() { IsSet = false };
 
         private bool AreSettingsValid() => ModFilePath.IsSet() && FileVersion.IsSet() && ApiKey.IsSet() && FileName.IsSet() && ModId != default;
 

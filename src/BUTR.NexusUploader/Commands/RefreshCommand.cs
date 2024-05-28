@@ -44,7 +44,7 @@ public class RefreshCommand : AsyncCommand<RefreshCommand.Settings>
         [CommandOption("-s|--session-cookie <session-cookie>")]
         [EnvironmentVariable("SESSION_COOKIE")]
         [Description("Value of the 'nexusmods_session' cookie. Can be a file path or the raw cookie value. Available Environment Variable: UNEX_SESSION_COOKIE")]
-        public string SessionCookie { get; set; } = default!;
+        public string SessionCookie { get; set; } = string.Empty;
 
         public override ValidationResult Validate()
         {

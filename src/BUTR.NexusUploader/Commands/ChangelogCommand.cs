@@ -49,21 +49,21 @@ public class ChangelogCommand : AsyncCommand<ChangelogCommand.Settings>
         [CommandOption("-k|--api-key")]
         [EnvironmentVariable("APIKEY")]
         [Description("The NexusMods API key. Available Environment Variable: UNEX_APIKEY")]
-        public string ApiKey { get; set; } = default!;
+        public string ApiKey { get; set; } = string.Empty;
 
         [CommandOption("-g|--game")]
         [EnvironmentVariable("GAME")]
         [Description("The NexusMods game name (domain) to upload the mod to. Can be found in the URL of the game page. Available Environment Variable: UNEX_GAME")]
-        public string Game { get; set; } = default!;
+        public string Game { get; set; } = string.Empty;
 
         [CommandOption("-m|--mod-id")]
         [EnvironmentVariable("MODID")]
         [Description("The NexusMods mod Id to update the changelog for. Available Environment Variable: UNEX_MODID")]
-        public int ModId { get; set; } = default!;
+        public int ModId { get; set; } = 0;
 
         [CommandArgument(0, "<version>")]
         [Description("The version of the mod to update the changelog for.")]
-        public string ModVersion { get; set; } = default!;
+        public string ModVersion { get; set; } = string.Empty;
 
         [CommandOption("-c|--changelog <changelog>")]
         [EnvironmentVariable("CHANGELOG")]
@@ -72,7 +72,7 @@ public class ChangelogCommand : AsyncCommand<ChangelogCommand.Settings>
 
         public override ValidationResult Validate()
         {
-            if (!ChangelogContent.IsSet() || !ModVersion.IsSet() || !ApiKey.IsSet() || !Game.IsSet() || ModId == default)
+            if (!ChangelogContent.IsSet() || !ModVersion.IsSet() || !ApiKey.IsSet() || !Game.IsSet() || ModId == 0)
                 return ValidationResult.Error("Not all required settings provided in configuration or command line!");
 
             return base.Validate();
