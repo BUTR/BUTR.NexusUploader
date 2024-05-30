@@ -70,7 +70,7 @@ public class ManageClient
     {
         using var message = new HttpRequestMessage(HttpMethod.Post, "/Core/Libs/Common/Managers/Mods?AddFile");
         message.Headers.Add("X-Requested-With", "XMLHttpRequest");
-        message.Headers.Add("Referer", $"https://www.nexusmods.com/{game.Name}/mods/edit/?step=docs&id={modId}");
+        message.Headers.Add("Referer", $"https://www.nexusmods.com/{game.Name}/mods/edit/?step=files&id={modId}&game_id={game.Id}");
         using var content = new MultipartFormDataContent();
         content.Add(game.Id.ToContent(), "game_id");
         content.Add(options.Name.ToContent(), "name");

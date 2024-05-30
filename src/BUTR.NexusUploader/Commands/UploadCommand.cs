@@ -14,7 +14,7 @@ using System;
 using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
-
+using Microsoft.Extensions.Configuration;
 using FileOptions = BUTR.NexusUploader.Models.FileOptions;
 
 namespace BUTR.NexusUploader.Commands;
@@ -127,6 +127,13 @@ public class UploadCommand : AsyncCommand<UploadCommand.Settings>
 
     public class Settings : CommandSettings
     {
+        private readonly IConfiguration _configuration;
+
+        public Settings(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
         [CommandArgument(0, "<mod-id>")]
         [Description("The NexusMods mod Id to upload the file to.")]
         public int ModId { get; set; } = 0;
@@ -187,6 +194,9 @@ public class UploadCommand : AsyncCommand<UploadCommand.Settings>
 
         public override ValidationResult Validate()
         {
+            FileDescription = _configuration.GetValue("FILEDESCRIPTION", FileDescription) ?? string.Empty;
+            PreviousFile = _configuration.GetValue("PREVIOUSFILE", PreviousFile) ?? string.Empty;
+
             if (!AreSettingsValid())
             {
                 return ValidationResult.Error("Not all required settings provided!");
