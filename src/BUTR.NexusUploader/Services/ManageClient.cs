@@ -33,7 +33,7 @@ public class ManageClient
             return false;
         }
 
-        return resp.StatusCode == HttpStatusCode.OK;
+        return resp.StatusCode is HttpStatusCode.OK or HttpStatusCode.Accepted
     }
 
     public async Task<bool> AddChangelog(GameRef game, int modId, string version, string changeMessage)
